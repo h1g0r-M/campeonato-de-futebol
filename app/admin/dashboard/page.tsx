@@ -335,7 +335,20 @@ export default function Dashboard() {
         },
         () => loadMatches()
       )
-      .subscribe()
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'teams',
+        },
+        () => loadTeams()
+      )
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          toast.error('Tempo real desconectado. Recarregue a página.')
+        }
+      })
 
     return () => {
       supabase.removeChannel(channel)

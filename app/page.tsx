@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
@@ -12,29 +12,38 @@ export default function Home() {
   const [matches, setMatches] = useState<Match[]>([])
   const [loadError, setLoadError] = useState('')
 
-  async function loadData() {
-    const { data: teamsData, error: teamsError } = await supabase
-      .from('teams')
-      .select('*')
+  const loadTeams = useCallback(async () => {
+    const { data, error } = await supabase.from('teams').select('*')
 
-    const { data: matchesData, error: matchesError } = await supabase
-      .from('matches')
-      .select('*')
-      .order('position')
-
-    if (teamsError || matchesError) {
-      const message =
-        teamsError?.message || matchesError?.message || 'Erro ao carregar dados'
-
-      setLoadError(message)
-      toast.error(message)
+    if (error) {
+      setLoadError(error.message)
+      toast.error(error.message)
       return
     }
 
     setLoadError('')
-    setTeams(teamsData || [])
-    setMatches(matchesData || [])
-  }
+    setTeams(data || [])
+  }, [])
+
+  const loadMatches = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('matches')
+      .select('*')
+      .order('position')
+
+    if (error) {
+      setLoadError(error.message)
+      toast.error(error.message)
+      return
+    }
+
+    setLoadError('')
+    setMatches(data || [])
+  }, [])
+
+  const loadData = useCallback(async () => {
+    await Promise.all([loadTeams(), loadMatches()])
+  }, [loadMatches, loadTeams])
 
   useEffect(() => {
     const initialLoad = window.setTimeout(() => {
@@ -42,7 +51,7 @@ export default function Home() {
     }, 0)
 
     const channel = supabase
-      .channel('public-live')
+      .channel('public-live-scoreboard')
       .on(
         'postgres_changes',
         {
@@ -50,15 +59,28 @@ export default function Home() {
           schema: 'public',
           table: 'matches',
         },
-        () => loadData()
+        () => loadMatches()
       )
-      .subscribe()
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'teams',
+        },
+        () => loadTeams()
+      )
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          toast.error('Tempo real desconectado. Recarregue a página.')
+        }
+      })
 
     return () => {
       window.clearTimeout(initialLoad)
       supabase.removeChannel(channel)
     }
-  }, [])
+  }, [loadData, loadMatches, loadTeams])
 
   function getTeam(id: string | null) {
     return teams.find((team) => team.id === id)

@@ -1,6 +1,9 @@
 alter table public.teams enable row level security;
 alter table public.matches enable row level security;
 
+alter publication supabase_realtime add table public.teams;
+alter publication supabase_realtime add table public.matches;
+
 create policy "Public can read teams"
 on public.teams
 for select
