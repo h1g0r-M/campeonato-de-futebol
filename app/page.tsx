@@ -103,31 +103,68 @@ export default function Home() {
   function Card({ match, color }: { match: Match; color: string }) {
     const team1 = getTeam(match.team1_id)
     const team2 = getTeam(match.team2_id)
+    const hasScore = match.score1 !== null && match.score2 !== null
+    const team1Won = hasScore && match.winner_id === match.team1_id
+    const team2Won = hasScore && match.winner_id === match.team2_id
+
+    function TeamRow({
+      team,
+      score,
+      winner,
+    }: {
+      team?: Team
+      score: number | null
+      winner: boolean
+    }) {
+      return (
+        <div
+          className={`grid grid-cols-[2rem_1fr_2.75rem] items-center gap-3 rounded-xl px-3 py-2 ${
+            winner ? 'bg-emerald-500/15 text-white' : 'bg-white/5 text-zinc-200'
+          }`}
+        >
+          {team?.logo ? (
+            <img src={team.logo} alt="" className="w-8 h-8 object-contain" />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-white/10" />
+          )}
+
+          <span className="min-w-0 truncate font-semibold">
+            {team?.name || 'A definir'}
+          </span>
+
+          <span
+            className={`rounded-lg py-1 text-center text-xl font-black ${
+              winner ? 'bg-emerald-400 text-zinc-950' : 'bg-zinc-950/60 text-white'
+            }`}
+          >
+            {score ?? '-'}
+          </span>
+        </div>
+      )
+    }
 
     return (
       <motion.div
         initial={{ opacity: 0, x: -30 }}
         animate={{ opacity: 1, x: 0 }}
         whileHover={{ scale: 1.04 }}
-        className={`${color} p-4 rounded-2xl w-56 shadow-xl mb-8 border border-white/10`}
+        className={`${color} p-3 rounded-2xl w-72 shadow-xl mb-8 border border-white/10`}
       >
-        <div className="flex items-center gap-2 mb-2">
-          {team1?.logo && (
-            <img src={team1.logo} alt="" className="w-8 h-8 object-contain" />
-          )}
-          <span className="font-semibold">{team1?.name || 'A definir'}</span>
+        <div className="mb-3 flex items-center justify-between px-1 text-xs font-bold uppercase tracking-wide text-zinc-400">
+          <span>Jogo {match.position}</span>
+          <span>{hasScore ? 'Encerrado' : 'Aguardando'}</span>
         </div>
 
-        <div className="flex items-center gap-2">
-          {team2?.logo && (
-            <img src={team2.logo} alt="" className="w-8 h-8 object-contain" />
-          )}
-          <span className="font-semibold">{team2?.name || 'A definir'}</span>
+        <div className="space-y-2">
+          <TeamRow team={team1} score={match.score1} winner={team1Won} />
+          <TeamRow team={team2} score={match.score2} winner={team2Won} />
         </div>
 
-        <div className="text-center text-xl font-bold mt-4">
-          {match.score1 ?? 0} x {match.score2 ?? 0}
-        </div>
+        {hasScore && (
+          <div className="mt-3 rounded-lg bg-black/25 px-3 py-2 text-center text-xs font-bold text-zinc-300">
+            Vencedor: {team1Won ? team1?.name : team2?.name}
+          </div>
+        )}
       </motion.div>
     )
   }

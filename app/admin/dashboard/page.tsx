@@ -117,13 +117,48 @@ export default function Dashboard() {
   async function resetTournament() {
     if (!confirm('Resetar campeonato?')) return
 
-    const { error } = await supabase.from('matches').delete().not('id', 'is', null)
+    const { data: currentMatches, error: listError } = await supabase
+      .from('matches')
+      .select('id')
+
+    if (listError) {
+      toast.error(listError.message)
+      return
+    }
+
+    const matchIds = (currentMatches || []).map((match) => match.id)
+
+    if (matchIds.length === 0) {
+      setMatches([])
+      setScores({})
+      toast.success('Campeonato já está vazio')
+      return
+    }
+
+    const { data: deletedMatches, error } = await supabase
+      .from('matches')
+      .delete()
+      .in('id', matchIds)
+      .select('id')
 
     if (error) {
       toast.error(error.message)
       return
     }
 
+    if ((deletedMatches || []).length !== matchIds.length) {
+      const { error: rpcError } = await supabase.rpc('reset_tournament')
+
+      if (rpcError) {
+        toast.error(
+          `Não consegui apagar os jogos: ${rpcError.message}`
+        )
+        return
+      }
+    }
+
+    setMatches([])
+    setScores({})
     toast.success('Campeonato resetado')
     await loadMatches()
   }
